@@ -42,7 +42,7 @@ import           Control.Applicative
 import           Data.Monoid             ((<>))
 import qualified Data.Set                as Set
 import qualified Data.Text.Encoding      as E
-import           Data.CaseInsensitive    (mk)
+import           Data.CaseInsensitive    (mk, CI, original)
 import           Data.Functor.Identity
 import           Data.Proxy              (Proxy (..))
 import qualified Data.Map                as Map
@@ -228,20 +228,20 @@ toHeaders :: BuildHeadersTo ls => ReqResult tag a -> ReqResult tag (Headers ls a
 toHeaders r =
   let toBS = E.encodeUtf8
       hdrs = maybe []
-                   (\xhr -> fmap (\(h,v) -> (mk (toBS h), toBS v))
+                   (\xhr -> fmap (\(h,v) -> (mk $ toBS $ original h, toBS v))
                      (Map.toList $ _xhrResponse_headers xhr))
                    (response r)
   in  ffor r $ \a -> Headers {getResponse = a ,getHeadersHList = buildHeadersTo hdrs}
 
 class BuildHeaderKeysTo hs where
-  buildHeaderKeysTo :: Proxy hs -> [T.Text]
+  buildHeaderKeysTo :: Proxy hs -> [CI T.Text]
 
 instance {-# OVERLAPPABLE #-} BuildHeaderKeysTo '[]
   where buildHeaderKeysTo _ = []
 
 instance {-# OVERLAPPABLE #-} (BuildHeaderKeysTo xs, KnownSymbol h)
   => BuildHeaderKeysTo ((Header h v) ': xs) where
-  buildHeaderKeysTo _ = T.pack (symbolVal (Proxy :: Proxy h)) : buildHeaderKeysTo (Proxy :: Proxy xs)
+  buildHeaderKeysTo _ = mk (T.pack (symbolVal (Proxy :: Proxy h))) : buildHeaderKeysTo (Proxy :: Proxy xs)
 
 -- HEADERS Verb (Content) --
 -- Headers combinator not treated in fully general case,
